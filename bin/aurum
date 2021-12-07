@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# This is a draft, initially implemented in bash
+# Future versions will be written in either clojure/babashka or
+# other higher-level language
+
+
+function version_gt() { test "$(echo "$@" | tr " " "\n" | sort -V | head -n 1)" != "$1"; }
+function version_le() { test "$(echo "$@" | tr " " "\n" | sort -V | head -n 1)" == "$1"; }
+function version_lt() { test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1"; }
+function version_ge() { test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" == "$1"; }
+
+function x_json() {
+  jq -creM "${1}" <([ -z ${2+x} ] && cat - || echo "${2}")
+}
+
+function check_version(){
+  local PKG
+  local VERSION
+  local CURR_VERSION
+
+  PKG="$(x_json '.Name' "${1}")"
+  VERSION=$(x_json '.Version' "${1}")
+  CURR_VERSION=$(expac "%v" "${PKG}")
+
+  version_gt "$VERSION" "$CURR_VERSION"
+
+  return $?
+}
+
+function install_pkg(){
+  local url
+  local target
+  local pkg
+
+  pkg=$(x_json '.Name' "${1}")
+  url=$(x_json '.URLPath' "${1}")
+  target=$(mktemp -d -t "${pkg}-XXXX")
+  cd "${target}" && {
+    curl -sO "https://aur.archlinux.org/${url}"
+    tar xzf "$(echo "${url}" | awk -NF/ '{ print $NF }')"
+    cd "$(x_json '.PackageBase' "${1}")" && {
+      makepkg -sic "${@:2}"
+    }
+  }
+}
+
+function syncdeps(){
+  local deps
+  local installed
+  local newdeps
+  local resp
+
+  deps=$(x_json '(.MakeDepends + .Depends)[]' "${1}" | awk -F'[<=>]' '{print $1}')
+  installed=$(echo "${deps}" | xargs expac '%n')
+
+  newdeps=$(diff --changed-group-format='%<' --unchanged-group-format=''  <(echo "${deps}") <(echo "${installed}"))
+
+  for dep in ${newdeps}; do
+    if ! pacman -Ss "${dep}" > /dev/null; then
+      resp=$(curl -s "https://aur.archlinux.org/rpc/?v=5&type=info&arg[]=$dep" | x_json '.results[]')
+      syncdeps "${resp}"
+      install_pkg "${resp}" --asdeps
+    fi
+  done
+}
+
+
+function sync(){
+  local resp
+  local version
+  local curr_version
+
+  for pkg in "${@}"; do
+    resp=$(curl -s "https://aur.archlinux.org/rpc/?v=5&type=info&arg[]=$pkg" | x_json '.results[]')
+    version=$(x_json '.Version' "${resp}")
+    syncdeps "${resp}"
+    curr_version=$(expac "%v" "$pkg")
+    if version_gt "$version" "$curr_version"; then
+      install_pkg "${resp}"
+    else
+      echo "Not updating ${pkg} since installed version ${curr_version} is bigger then or equals to ${version}"
+    fi
+  done
+}
+
+function check(){
+  local JSON
+  local PACKAGES
+  local MAX
+  local PKG
+  local ANY
+
+  PACKAGES=()
+  readarray -t PACKAGES < <(pacman -Qm | awk '{print $1}')
+
+  BASEURL="https://aur.archlinux.org/rpc/?v=5&type=info"
+  for pkg in "${PACKAGES[@]}"; do
+    BASEURL="${BASEURL}&arg[]=${pkg}"
+  done
+
+  JSON=$(curl -s "${BASEURL}")
+  MAX="$(x_json '.results | length' "${JSON}")"
+  for ((ix=0; ix<MAX; ix++)); do
+    PKG="$(x_json ".results[$ix]" "${JSON}")"
+    if check_version "$PKG"; then
+      local NAME
+      ANY=true
+
+      NAME=$(x_json '.Name' "${PKG}")
+
+      echo "${NAME} can be updated $(expac "%v" "${NAME}") → $(x_json '.Version' "${PKG}")"
+    fi
+  done
+
+  if ! $ANY; then
+    echo "No package needs update"
+  fi
+}
+
+
+"${@}"
