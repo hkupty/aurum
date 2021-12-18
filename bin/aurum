@@ -14,15 +14,15 @@ function x_json() {
 }
 
 function check_version(){
-  local PKG
-  local VERSION
-  local CURR_VERSION
+  local pkg
+  local version
+  local curr_version
 
-  PKG="$(x_json '.Name' "${1}")"
-  VERSION=$(x_json '.Version' "${1}")
-  CURR_VERSION=$(expac "%v" "${PKG}")
+  pkg="$(x_json '.Name' "${1}")"
+  version=$(x_json '.Version' "${1}")
+  curr_version=$(expac "%v" "${pkg}")
 
-  version_gt "$VERSION" "$CURR_VERSION"
+  version_gt "$version" "$curr_version"
 
   return $?
 }
@@ -64,7 +64,6 @@ function syncdeps(){
   done
 }
 
-
 function sync(){
   local resp
   local version
@@ -84,35 +83,35 @@ function sync(){
 }
 
 function check(){
-  local JSON
-  local PACKAGES
-  local MAX
-  local PKG
-  local ANY
+  local json
+  local packages
+  local max
+  local pkg
+  local any
 
-  PACKAGES=()
-  readarray -t PACKAGES < <(pacman -Qm | awk '{print $1}')
+  packages=()
+  readarray -t packages < <(pacman -Qm | awk '{print $1}')
 
-  BASEURL="https://aur.archlinux.org/rpc/?v=5&type=info"
-  for pkg in "${PACKAGES[@]}"; do
-    BASEURL="${BASEURL}&arg[]=${pkg}"
+  baseurl="https://aur.archlinux.org/rpc/?v=5&type=info"
+  for pkg in "${packages[@]}"; do
+    baseurl="${baseurl}&arg[]=${pkg}"
   done
 
-  JSON=$(curl -s "${BASEURL}")
-  MAX="$(x_json '.results | length' "${JSON}")"
-  for ((ix=0; ix<MAX; ix++)); do
-    PKG="$(x_json ".results[$ix]" "${JSON}")"
-    if check_version "$PKG"; then
-      local NAME
-      ANY=true
+  json=$(curl -s "${baseurl}")
+  max="$(x_json '.results | length' "${json}")"
+  for ((ix=0; ix<max; ix++)); do
+    pkg="$(x_json ".results[$ix]" "${json}")"
+    if check_version "$pkg"; then
+      local name
+      any=true
 
-      NAME=$(x_json '.Name' "${PKG}")
+      name=$(x_json '.Name' "${pkg}")
 
-      echo "${NAME} can be updated $(expac "%v" "${NAME}") → $(x_json '.Version' "${PKG}")"
+      echo "${name} can be updated $(expac "%v" "${name}") → $(x_json '.Version' "${pkg}")"
     fi
   done
 
-  if ! $ANY; then
+  if ! $any; then
     echo "No package needs update"
   fi
 }
