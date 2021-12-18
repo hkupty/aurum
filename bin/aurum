@@ -82,6 +82,24 @@ function sync(){
   done
 }
 
+function refresh(){
+  local pkg
+  local resp
+  local version
+  local flags
+
+  for pkg in $(expac -Q '%n' | rg -e '-(git|hg|svn|vcs)'); do
+    resp=$(curl -s "https://aur.archlinux.org/rpc/?v=5&type=info&arg[]=$pkg" | x_json '.results[]')
+    version=$(x_json '.Version' "${resp}")
+    flags=()
+    if [[ $(expac '%w' "${pkg}") = 'dependency' ]]; then
+      flags+=("--asdeps")
+    fi
+    syncdeps "${resp}"
+    install_pkg "${resp}" "${flags[@]}"
+  done
+}
+
 function check(){
   local json
   local packages
