@@ -22,6 +22,16 @@ All in all, it was a good opportunity for me to rethink my workflow.
 
 Download/clone this repo, `cd ~/.local/bin`, `ln -s <your path to aurum>/bin/aurum`.
 
+## Usage
+
+It currently has 3 commands:
+
+* `aurum check` checks your AUR packages for newer versions;
+* `aurum sync <package>` installs or updates an AUR package;
+* `aurum refresh` refreshes `-git` (or `-hg`, `-svn`...) packages;
+
+Requires `jq`,`expac` and `curl`
+
 Optionally, you can ln it to `au` instead of `aurum` since that's shorter and still correct.
 
 ## I love it, want to contribute
