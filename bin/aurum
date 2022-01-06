@@ -3,11 +3,14 @@
 # Future versions will be written in either clojure/babashka or
 # other higher-level language
 
-
 function version_gt() { test "$(echo "$@" | tr " " "\n" | sort -V | head -n 1)" != "$1"; }
 function version_le() { test "$(echo "$@" | tr " " "\n" | sort -V | head -n 1)" == "$1"; }
 function version_lt() { test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1"; }
 function version_ge() { test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" == "$1"; }
+
+# TODO Make package directories persistent/use XDG_CACHE folder
+# TODO Port to babashka
+# TODO Add search
 
 function x_json() {
   jq -creM "${1}" <([ -z ${2+x} ] && cat - || echo "${2}")
@@ -30,11 +33,14 @@ function check_version(){
 function install_pkg(){
   local url
   local target
+  local version
   local pkg
 
   pkg=$(x_json '.Name' "${1}")
+  version=$(x_json '.Version' "${1}")
   url=$(x_json '.URLPath' "${1}")
-  target=$(mktemp -d -t "${pkg}-XXXX")
+  target="/tmp/aurum/${pkg}-${version}"
+  mkdir -p "${target}"
   cd "${target}" && {
     curl -sO "https://aur.archlinux.org/${url}"
     tar xzf "$(echo "${url}" | awk -NF/ '{ print $NF }')"
