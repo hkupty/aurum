@@ -7,7 +7,7 @@
 
 I used to have an AUR helper that I wrote over the course of many years, always improving a little bit, but I was growing tired of its manual workflow.
 
-So I decide to use something that:
+So I decided to use something that:
 * Relied solely on AUR's [RPC Interface](https://wiki.archlinux.org/title/Aurweb_RPC_interface);
 * Was simple, easy to read the source and understand (since I usually improve it from time to time);
 * Didn't require manual work from me (i.e. searching the packages, cloning the repo);
