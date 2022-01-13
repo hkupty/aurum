@@ -40,6 +40,43 @@ function x_json() {
   jq -creM "${1}" <([ -z ${2+x} ] && cat - || echo "${2}")
 }
 
+function spin() {
+  spinner="/|\\-"
+
+  while :
+  do
+    for i in $(seq 0 3)
+    do
+      echo -e "$(style $BLUE $BOLD)[au ${1}]$OFF ${spinner:$i:1}";
+      sleep 1
+      previous_line
+      clear_line
+    done
+  done
+}
+
+function do_waiting() {
+  local pkg
+  local spin_pid
+  local cmd
+  local cmd_exit
+
+  pkg="${1}"
+  cmd=("${@:2}")
+
+  spin "${pkg}/${cmd[0]}" &
+  spin_pid=$!
+
+  "${cmd[@]}" &> /dev/null
+
+  cmd_exit=$?
+
+  kill -9 $spin_pid
+  wait $spin_pid  &> /dev/null
+
+  return $cmd_exit
+}
+
 function check_version(){
   local pkg
   local version
@@ -65,13 +102,14 @@ function install_pkg(){
   version=$(x_json '.Version' "${1}")
   url=$(x_json '.URLPath' "${1}")
   target="/tmp/aurum/${pkg}-${version}"
+
   mkdir -p "${target}"
   info "${pkg}" "Installing"
   cd "${target}" && {
-    curl -sO "https://aur.archlinux.org/${url}"
-    tar xzf "$(echo "${url}" | awk -NF/ '{ print $NF }')"
+    do_waiting "${pkg}" curl -sO "https://aur.archlinux.org/${url}"
+    do_waiting "${pkg}" tar xzf "$(echo "${url}" | awk -NF/ '{ print $NF }')"
     cd "$(x_json '.PackageBase' "${1}")" && {
-      makepkg -sic "${@:2}"
+      do_waiting "${pkg}" makepkg -sc && {
         set -x
         flags=("${@:2}")
         if (( ${#flags[@]} )); then
