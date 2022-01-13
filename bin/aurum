@@ -43,6 +43,7 @@ function x_json() {
 function spin() {
   spinner="/|\\-"
 
+  sleep 2
   while :
   do
     for i in $(seq 0 3)
