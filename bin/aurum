@@ -8,6 +8,8 @@ function version_le() { test "$(echo "$@" | tr " " "\n" | sort -V | head -n 1)" 
 function version_lt() { test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" != "$1"; }
 function version_ge() { test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" == "$1"; }
 
+CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}"
+
 BASE='\033['
 
 BLACK=";30"
@@ -102,7 +104,7 @@ function install_pkg(){
   pkg=$(x_json '.Name' "${1}")
   version=$(x_json '.Version' "${1}")
   url=$(x_json '.URLPath' "${1}")
-  target="/tmp/aurum/${pkg}-${version}"
+  target="${CACHE_DIR}/aurum/${pkg}-${version}"
 
   mkdir -p "${target}"
   info "${pkg}" "Installing"
