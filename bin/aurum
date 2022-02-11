@@ -220,4 +220,27 @@ function check(){
   done
 }
 
+function search() {
+  local pkg
+  local name
+  local descr
+  local packages
+  local search
+  local baseurl
+
+  packages=()
+
+  baseurl="https://aur.archlinux.org/rpc/?v=5&type=search"
+
+  search="${@}"
+  readarray -t packages < <(curl -s "${baseurl}&arg=${search// /%20}" | x_json '.results[]')
+
+  for pkg in "${packages[@]}"; do
+    name=$(x_json '.Name' "${pkg}")
+    descr=$(x_json '.Description' "${pkg}")
+    info "${name}" "${descr}"
+  done
+
+}
+
 "${@}"
