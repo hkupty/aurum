@@ -45,7 +45,7 @@ function x_json() {
 function spin() {
   spinner="/|\\-"
 
-  sleep 2
+  sleep 4
   while :
   do
     for i in $(seq 0 3)
@@ -113,16 +113,12 @@ function install_pkg(){
     do_waiting "${pkg}" tar xzf "$(echo "${url}" | awk -NF/ '{ print $NF }')"
     cd "$(x_json '.PackageBase' "${1}")" && {
       do_waiting "${pkg}" makepkg -sc && {
-        set -x
         flags=("${@:2}")
-        if (( ${#flags[@]} )); then
-          sudo pacman -U "${flags[@]}" "$(fd '.*.tar.gz.*' . | sort -r | head -n1)"
-        else
-          sudo pacman -U "$(fd '.*.tar.gz.*' . | sort -r | head -n1)"
-        set +x
-
+        sudo pacman -U "${flags[@]}" "$(fd '.*.pkg.tar.*' . | sort -r | head -n1)" && {
           success "${pkg}" "Installed"
-        fi
+        } || {
+          error "${pkg}" "Failed to install"
+        }
       } || {
         info "${pkg}" "No update, skipping"
       }
@@ -208,7 +204,7 @@ function check(){
     name=$(x_json '.Name' "${pkg}")
     if check_version "$pkg"; then
 
-      info "${name}" "$(expac "%v" "${name}") → $(x_json '.Version' "${pkg}")"
+      success "${name}" "$(expac "%v" "${name}") → $(x_json '.Version' "${pkg}")"
     else
       info "${name}" "is up-to-date ($(expac "%v" "${name}"))"
     fi
