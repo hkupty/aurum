@@ -34,9 +34,7 @@ function error() { echo -e "$(style $RED $BOLD)[au ${1}]$OFF ${*:2}"; }
 function previous_line() { echo -en "${BASE}1A"; }
 function clear_line() { echo -en "${BASE}2K${BASE}99D"; }
 
-# TODO Make package directories persistent/use XDG_CACHE folder
 # TODO Port to babashka
-# TODO Add search
 
 function x_json() {
   jq -creM "${1}" <([ -z ${2+x} ] && cat - || echo "${2}")
