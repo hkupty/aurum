@@ -126,25 +126,32 @@ function install_pkg(){
 
 function syncdeps(){
   local deps
+  local dep
   local installed
   local pacmanpkgs
   local newdeps
   local resp
+  local results
 
   pacmanpkgs=()
 
   deps=$(x_json '(.MakeDepends + .Depends)[]' "${1}" | awk -F'[<=>]' '{print $1}')
   installed=$(echo "${deps}" | xargs expac '%n')
 
-  newdeps=$(diff --changed-group-format='%<' --unchanged-group-format=''  <(echo "${deps}") <(echo "${installed}"))
+  read -r -a newdeps <<< "$(diff --changed-group-format='%<' --unchanged-group-format=''  <(echo "${deps}") <(echo "${installed}"))"
 
-  for dep in ${newdeps[@]}; do
-    if ! pacman -Ss "${dep}" > /dev/null; then
-      resp=$(curl -s "https://aur.archlinux.org/rpc/?v=5&type=info&arg[]=$dep" | x_json '.results[]')
-      syncdeps "${resp}"
-      install_pkg "${resp}" --asdeps
+  for dep in "${newdeps[@]}"; do
+    if ! expac -Ss '' "${dep}" > /dev/null; then
+      resp=$(curl -s "https://aur.archlinux.org/rpc/?v=5&type=info&arg[]=$dep")
+      results=$(echo "${resp}" | x_json '.results[]')
+
+      syncdeps "${results}"
+      install_pkg "${results}" --asdeps
     else
-      pacmanpkgs+=("${dep}")
+      # looks for package groups as well, i.e. java-environment
+      if ! expac -s '' "${dep}"; then
+        pacmanpkgs+=("${dep}")
+      fi
     fi
   done
 
