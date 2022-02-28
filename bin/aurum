@@ -178,6 +178,24 @@ function sync(){
   done
 }
 
+function sync-as-deps(){
+  local resp
+  local version
+  local curr_version
+
+  for pkg in "${@}"; do
+    resp=$(curl -s "https://aur.archlinux.org/rpc/?v=5&type=info&arg[]=$pkg" | x_json '.results[]')
+    version=$(x_json '.Version' "${resp}")
+    syncdeps "${resp}"
+    curr_version=$(expac "%v" "$pkg")
+    if version_gt "$version" "$curr_version"; then
+      install_pkg "${resp}" --asdeps
+    else
+      warn "${pkg}" is up-to-date. Skipping.
+    fi
+  done
+}
+
 function refresh(){
   local pkg
   local resp
