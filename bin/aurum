@@ -99,24 +99,29 @@ function install_pkg(){
   local version
   local pkg
   local flags
+  local pkg_folder
 
   pkg=$(x_json '.Name' "${1}")
+  if [ -z "${pkg}" ]; then
+    warn "Missing .name" "${@}"
+  fi
   version=$(x_json '.Version' "${1}")
   url=$(x_json '.URLPath' "${1}")
-  target="${CACHE_DIR}/aurum/${pkg}-${version}"
+  target="${CACHE_DIR}/aurum/${pkg}"
+  pkg_folder="$(x_json '.PackageBase' "${1}")-${version}"
 
-  mkdir -p "${target}"
+  mkdir -p "${target}/${pkg_folder}"
   info "${pkg}" "Installing"
   cd "${target}" && {
-    do_waiting "${pkg}" curl -sO "https://aur.archlinux.org/${url}"
-    do_waiting "${pkg}" tar xzf "$(echo "${url}" | awk -NF/ '{ print $NF }')"
-    cd "$(x_json '.PackageBase' "${1}")" && {
+    do_waiting "${pkg}" curl -sO "https://aur.archlinux.org/${url}" || abort "${pkg}"
+    do_waiting "${pkg}" tar xzf "$(echo "${url}" | awk -NF/ '{ print $NF }')" -C "${pkg_folder}" --strip-components 1 || abort "${pkg}"
+    cd "${pkg_folder}" && {
       do_waiting "${pkg}" makepkg -sc && {
         flags=("${@:2}")
         sudo pacman -U "${flags[@]}" "$(fd '.*.pkg.tar.*' . | sort -r | head -n1)" && {
           success "${pkg}" "Installed"
         } || {
-          error "${pkg}" "Failed to install"
+          abort "${pkg}"
         }
       } || {
         info "${pkg}" "No update, skipping"
